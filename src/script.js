@@ -1,4 +1,4 @@
-const clientId = "b5a4ed6ab1ab44818b0de34281759a26" // Replace with your client ID
+const clientId = "b5a4ed6ab1ab44818b0de34281759a26"
 const params = new URLSearchParams(window.location.search)
 const code = params.get("code")
 
@@ -7,8 +7,10 @@ if (!code) {
 } else {
   const accessToken = await getAccessToken(clientId, code)
   const profile = await fetchProfile(accessToken)
-  console.log(profile)
+  const countries = await countryList(accessToken)
   populateUI(profile)
+  const names = await getCountryNames(countries)
+  populateCountry(names)
 }
 
 export async function redirectToAuthCodeFlow(clientId) {
@@ -93,4 +95,44 @@ function populateUI(profile) {
     .setAttribute("href", profile.external_urls.spotify)
   document.getElementById("url").innerText = profile.href
   document.getElementById("url").setAttribute("href", profile.href)
+}
+
+async function countryList(token) {
+  const result = await fetch("https://api.spotify.com/v1/markets", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  const { markets } = await result.json()
+  return markets
+}
+
+async function getCountryNames(countryCodes) {
+  const apiUrl = "https://restcountries.com/v2/alpha"
+
+  try {
+    const countryNames = await Promise.all(
+      countryCodes.map(async (code) => {
+        const response = await fetch(`${apiUrl}/${code}`)
+        if (!response.ok) {
+          throw new Error("Failed to fetch country data")
+        }
+        const countryData = await response.json()
+        return countryData.name
+      })
+    )
+
+    return countryNames
+  } catch (error) {
+    console.error(error)
+    return []
+  }
+}
+
+function populateCountry(clist) {
+  const doc = document.getElementById("countries")
+  clist.forEach((country) => {
+    const listItem = document.createElement("li")
+    listItem.textContent = country
+    doc.appendChild(listItem)
+  })
 }
